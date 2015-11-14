@@ -95,6 +95,14 @@ func zipPath(name string) string {
 }
 
 func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
+	// TODO: rename abspath to zippath; it is in fact the absolute path with the
+	// leading '/' removed.
+	if abspath == "" {
+		return 0, zipFI{
+			name: "",
+			file: nil,
+		}, nil
+	}
 	i, exact := fs.list.lookup(abspath)
 	if i < 0 {
 		// abspath has leading '/' stripped - print it explicitly
@@ -162,7 +170,17 @@ func (fs *zipFS) ReadDir(abspath string) ([]os.FileInfo, error) {
 	}
 
 	var list []os.FileInfo
-	dirname := path + "/"
+
+	// make dirname the prefix that file names must start with to be considered
+	// in this directory. we must special case the root directory because, per
+	// the spec of this package, zip file entries MUST NOT start with /, so we
+	// should not append /, as we would in every other case.
+	var dirname string
+	if path == "" {
+		dirname = ""
+	} else {
+		dirname = path + "/"
+	}
 	prevname := ""
 	for _, e := range fs.list[i:] {
 		if !strings.HasPrefix(e.Name, dirname) {
